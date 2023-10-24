@@ -9,7 +9,7 @@ bl_info = {
 
 import bpy
 
-from .sqo_pnl import SequoiaMeshPanel
+from .sqo_pnl import SQO_PT_mesh_panel
 from .sqo_test_export import SequoiaTestExport
 from .sqo_props import (SequoiaObjectProperties, SequoiaSceneProperties)
 from .sqo_export import (SequoiaExportSQO, SQO_PT_export_include_settings, SQO_PT_export_mesh_settings)
@@ -17,7 +17,7 @@ from .sqo_export import (SequoiaExportSQO, SQO_PT_export_include_settings, SQO_P
 classes = (
     SequoiaObjectProperties, 
     SequoiaSceneProperties, 
-    SequoiaMeshPanel, 
+    SQO_PT_mesh_panel, 
     SequoiaTestExport, 
     SequoiaExportSQO, 
     SQO_PT_export_include_settings,

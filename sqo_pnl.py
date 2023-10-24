@@ -1,7 +1,7 @@
 import bpy
 
-class SequoiaMeshPanel(bpy.types.Panel):
-    bl_idname = "_PT_sequoia_mesh_panel"
+class SQO_PT_mesh_panel(bpy.types.Panel):
+    bl_idname = "SQO_PT_mesh_panel"
     bl_label = "Sequoia"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'

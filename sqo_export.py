@@ -24,7 +24,7 @@ class SequoiaModelGenerator:
         passthrough.report({'INFO'}, "loading data")
 
         for object in bpy.data.objects:
-            passthrough.report({'INFO'}, str(type(object)))
+            #passthrough.report({'INFO'}, str(type(object)))
             object_data = {
                 "name": object.name,
                 "type": object.type,
@@ -154,7 +154,6 @@ class SequoiaModelGenerator:
 
         return json.dumps(self.processed_data, indent=2)
 
-
 class SequoiaExportSQO(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     bl_idname = "exportsqo.sqo"
     bl_label = "Export SQO"         # Display name in the interface.
@@ -180,9 +179,9 @@ class SequoiaExportSQO(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
 
         del generator
 
-        self.report({'INFO'}, json_data)
+        #self.report({'INFO'}, json_data)
+        self.report({'INFO'}, "Exporting model to " + self.filepath)
 
-        #self.report({'INFO'}, "Exporting to " + self.filepath)
         return {'FINISHED'}
     
     def draw(self, context):
@@ -201,8 +200,10 @@ class SQO_PT_export_include_settings(bpy.types.Panel):
     bl_parent_id = "FILE_PT_operator"
 
     @classmethod
-    def poll(cls, context):
-        return True
+    def poll(self, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+        return operator.bl_idname == "EXPORTSQO_OT_sqo"
 
     def draw(self, context):
         layout = self.layout
@@ -221,8 +222,10 @@ class SQO_PT_export_mesh_settings(bpy.types.Panel):
     bl_parent_id = "FILE_PT_operator"
 
     @classmethod
-    def poll(cls, context):
-        return True
+    def poll(self, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+        return operator.bl_idname == "EXPORTSQO_OT_sqo"
 
     def draw(self, context):
         layout = self.layout
@@ -230,3 +233,7 @@ class SQO_PT_export_mesh_settings(bpy.types.Panel):
         layout.use_property_decorate = False
 
         sqo_settings = context.scene.sequoia
+        col = layout.column()
+        col.prop(sqo_settings, "force_32_bit_indices", text = "Force 32 bit indices")
+
+        
