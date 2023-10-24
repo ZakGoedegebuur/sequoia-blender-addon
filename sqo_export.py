@@ -1,6 +1,7 @@
 import bpy
 import bpy_extras
 import json
+import math
 
 def metadata(version_major, version_minor, version_patch, generator = "no name", copyright = "no copyright"):
     return {
@@ -85,6 +86,15 @@ class SequoiaModelGenerator:
                         bone_data["child_bone_names"].append(child_bone.name)
 
                     self.loaded_data["objects"].append(bone_data)
+            
+            elif object.type == 'CAMERA':
+                camera = object.data
+                object_data["camera_data"] = {
+                    "type": camera.type,
+                    "hfov": math.degrees(camera.angle_x),
+                    "clip_start": camera.clip_start,
+                    "clip_end": camera.clip_end,
+                }
 
             self.loaded_data["objects"].append(object_data)
 
@@ -94,7 +104,8 @@ class SequoiaModelGenerator:
         self.processed_data = {
             "metadata": metadata(1, 0, 0, "SQO Original Blender Addon", bpy.context.scene.sequoia.get("model_copyright", None)),
             "nodes": [],
-            "meshes": []
+            "cameras": [],
+            "meshes": [],
             #"materials": ["shiny", "rough", "matte"],
             #"textures": ["pallette.png", "grass.png"]
         }
@@ -110,31 +121,34 @@ class SequoiaModelGenerator:
                 "child_names": obj["child_names"],
             }
 
-            should_include_geometry = True
+            should_include_extras = True
             cull_hidden = context.scene.sequoia.get("limit_to_visible", False)
             if cull_hidden and obj["is_hidden"]:
-                should_include_geometry = False
+                should_include_extras = False
             cull_deselected = context.scene.sequoia.get("limit_to_selected", False)
             if cull_deselected and not obj["is_selected"]:
-                should_include_geometry = False
+                should_include_extras = False
 
-            if "mesh_data" in obj and should_include_geometry:
+            if "mesh_data" in obj and should_include_extras and context.scene.sequoia.get("export_meshes", True):
                 node["mesh"] = obj["mesh_data"]
+
+            if "camera_data" in obj and should_include_extras and context.scene.sequoia.get("export_cameras", True):
+                node["camera"] = obj["camera_data"]
 
             self.processed_data["nodes"].append(node)
 
         for obj in self.processed_data["nodes"]:
+            def find_node_index():
+                for ind, node in enumerate(self.processed_data["nodes"]):
+                    if obj["parent_type"] == 'BONE':
+                        if node["name"] == obj["parent_bone_name"] and node["parent_object_name"] == obj["parent_object_name"]:
+                            return ind
+                    else:
+                        if node["name"] == obj["parent_object_name"]:
+                            return ind
+                return None
+            
             if "mesh" in obj:
-                def find_node_index():
-                    for ind, node in enumerate(self.processed_data["nodes"]):
-                        if obj["parent_type"] == 'BONE':
-                            if node["name"] == obj["parent_bone_name"] and node["parent_object_name"] == obj["parent_object_name"]:
-                                return ind
-                        else:
-                            if node["name"] == obj["parent_object_name"]:
-                                return ind
-                    return None
-                            
                 mesh = {
                     "parent_object_name": obj["name"],
                     "parent_node_index": find_node_index(),
@@ -145,9 +159,20 @@ class SequoiaModelGenerator:
                 }
 
                 del obj["mesh"]
-
                 self.processed_data["meshes"].append(mesh)
+            
+            if "camera" in obj:
+                camera = {
+                    "parent_object_name": obj["name"],
+                    "parent_node_index": find_node_index(),
+                    "camera_type": obj["camera"]["type"],
+                    "horizontal_fov": obj["camera"]["hfov"],
+                    "clip_start": obj["camera"]["clip_start"],
+                    "clip_end": obj["camera"]["clip_end"],
+                }
 
+                del obj["camera"]
+                self.processed_data["cameras"].append(camera)
 
     def dump_json(self, passthrough):
         passthrough.report({'INFO'}, "dumping json")
@@ -190,13 +215,17 @@ class SequoiaExportSQO(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
         layout.use_property_decorate = False
 
         sqo_settings = context.scene.sequoia
+        
         col = layout.column(heading = "Copyright", align = True)
         col.prop(sqo_settings, "model_copyright")
+
+        col = layout.column(align = True)
+        col.prop(sqo_settings, "export_verbose", text="Export Verbose Data")
 
 class SQO_PT_export_include_settings(bpy.types.Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'TOOL_PROPS'
-    bl_label = "Include"
+    bl_label = "Export"
     bl_parent_id = "FILE_PT_operator"
 
     @classmethod
@@ -211,9 +240,20 @@ class SQO_PT_export_include_settings(bpy.types.Panel):
         layout.use_property_decorate = False
 
         sqo_settings = context.scene.sequoia
+
+        col = layout.column(heading = "Include", align = True)
+        col.prop(sqo_settings, "export_meshes", text="Meshes")
+        col.prop(sqo_settings, "export_empties", text="Empties")
+        col.prop(sqo_settings, "export_lights", text="Lights")
+        col.prop(sqo_settings, "export_cameras", text="Cameras")
+        col.prop(sqo_settings, "export_cubemaps", text="Cubemaps")
+        col.prop(sqo_settings, "export_speakers", text="Speakers")
+        col.prop(sqo_settings, "export_materials", text="Materials")
+
         col = layout.column(heading = "Limit to", align = True)
         col.prop(sqo_settings, "limit_to_selected", text="Selected Objects")
         col.prop(sqo_settings, "limit_to_visible", text="Visible Objects")
+
 
 class SQO_PT_export_mesh_settings(bpy.types.Panel):
     bl_space_type = 'FILE_BROWSER'
@@ -233,7 +273,8 @@ class SQO_PT_export_mesh_settings(bpy.types.Panel):
         layout.use_property_decorate = False
 
         sqo_settings = context.scene.sequoia
-        col = layout.column()
+        col = layout.column(heading = "Override", align = True)
         col.prop(sqo_settings, "force_32_bit_indices", text = "Force 32 bit indices")
+        col.prop(sqo_settings, "force_skinned_vertices", text = "Force skinned vertices")
 
         
