@@ -96,6 +96,17 @@ class SequoiaModelGenerator:
                     "clip_end": camera.clip_end,
                 }
 
+            elif object.type == 'LIGHT':
+                light = object.data
+                object_data["light_data"] = {
+                    "type": light.type,
+                    "color": {"r": light.color.r, "g": light.color.g, "b": light.color.b},
+                    "energy": light.energy,
+                }
+
+                if light.type == 'SUN':
+                    object_data["light_data"]["sun_radius_angle"] = math.degrees(light.angle)
+
             self.loaded_data["objects"].append(object_data)
 
     def process_data(self, passthrough, context):
@@ -105,6 +116,7 @@ class SequoiaModelGenerator:
             "metadata": metadata(1, 0, 0, "SQO Original Blender Addon", bpy.context.scene.sequoia.get("model_copyright", None)),
             "nodes": [],
             "cameras": [],
+            "lights": [],
             "meshes": [],
             #"materials": ["shiny", "rough", "matte"],
             #"textures": ["pallette.png", "grass.png"]
@@ -134,6 +146,9 @@ class SequoiaModelGenerator:
 
             if "camera_data" in obj and should_include_extras and context.scene.sequoia.get("export_cameras", True):
                 node["camera"] = obj["camera_data"]
+
+            if "light_data" in obj and should_include_extras and context.scene.sequoia.get("export_lights", True):
+                node["light"] = obj["light_data"]
 
             self.processed_data["nodes"].append(node)
 
@@ -173,6 +188,19 @@ class SequoiaModelGenerator:
 
                 del obj["camera"]
                 self.processed_data["cameras"].append(camera)
+
+            if "light" in obj:
+                light = {
+                    "type": obj["light"]["type"],
+                    "color": obj["light"]["color"],
+                    "energy": obj["light"]["energy"],
+                }
+
+                if light["type"] == 'SUN':
+                    light["sun_radius_angle"] = obj["light"]["sun_radius_angle"]
+
+                del obj["light"]
+                self.processed_data["lights"].append(light)
 
     def dump_json(self, passthrough):
         passthrough.report({'INFO'}, "dumping json")
